@@ -3,8 +3,23 @@ import { SaveFile } from './save-file.use-case';
 
 describe('SaveFileUseCase', ()=>{
 
+    const customOptions = {
+        fileContent: 'Custom content',
+        fileDestination: 'custom-outputs',
+        fileName: 'custom-table-name'
+    }
+    const filePath = `${customOptions.fileDestination}/${customOptions.fileName}.txt`;
+
+    // beforeEach(()=>{
+    //     jest.clearAllMocks();
+    // });
+
     afterEach(()=>{
-        fs.rmSync('outputs', { recursive: true });
+        const exists = fs.existsSync('outputs');
+        if(exists) fs.rmSync('outputs', { recursive: true });
+
+        const customOutputFolderExists = fs.existsSync(customOptions.fileDestination);
+        if(customOutputFolderExists) fs.rmSync(customOptions.fileDestination, { recursive: true });
     });
 
     test('should save file with default values', ()=>{
@@ -20,6 +35,39 @@ describe('SaveFileUseCase', ()=>{
         expect(result).toBe(true);
         expect(fileExists).toBe(true);
         expect(fileContent).toBe(options.fileContent);
+    });
+
+    test('should save file with custom values', ()=>{
+        const saveFile = new SaveFile();
+
+        const result = saveFile.execute(customOptions);
+        const fileExists = fs.existsSync(filePath);
+        const fileContent = fs.readFileSync(filePath, { encoding: 'utf-8' });
+
+        expect(result).toBe(true);
+        expect(fileExists).toBe(true);
+        expect(fileContent).toBe(customOptions.fileContent);
+    });
+
+    test('should return false if directory could not be created', ()=>{
+        const saveFile = new SaveFile();
+        const mkdirSpy = jest.spyOn(fs, 'mkdirSync').mockImplementation(
+            () => { throw new Error('This is a custom error message from my testing'); }
+        );
+        const result = saveFile.execute(customOptions);
+        expect(result).toBe(false);
+        mkdirSpy.mockRestore();
+    });
+
+    test('should return false if file could not be created', ()=>{
+        const saveFile = new SaveFile();
+        const writeFileSpy = jest.spyOn(fs, 'writeFileSync').mockImplementation(
+            () => { throw new Error('This is a custom writing error message'); }
+        );
+
+        const result = saveFile.execute({ fileContent: 'hola' });
+        expect(result).toBe(false);
+        writeFileSpy.mockRestore();
     });
 
 });
